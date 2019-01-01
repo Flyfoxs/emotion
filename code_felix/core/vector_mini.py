@@ -29,22 +29,17 @@ def filter_duplicate_words(file_list):
 
 @timed()
 def gen_mini_embedding(wv_from_text, word_list):
-    from multiprocessing import Pool
+    from multiprocessing.dummy import Pool
 
     from functools import partial
 
-    partition_num = 4
-    partition_length = len(word_list)//partition_num
+    #thread_pool = Pool(processes=partition_num)
+    #process = partial(gen_mini_partition,wv_from_text=wv_from_text )
 
-    partition_list = [ word_list[i:i+partition_length]  for i in range(0, len(word_list), partition_length )]
-    logger.debug(f'The word list split to {len(partition_list)} partitions:{[ len(partition) for partition in partition_list]}')
-    thread_pool = Pool(processes=4)
-    process = partial(gen_mini_partition,wv_from_text=wv_from_text )
+    #wv_list = thread_pool.map(process, partition_list)
+    #thread_pool.close(); thread_pool.join()
 
-    wv_list = thread_pool.map(process, partition_list)
-    thread_pool.close(); thread_pool.join()
-
-    mini = merge_Word2Vec(wv_list)
+    mini = gen_mini_partition(word_list, wv_from_text)
 
     return mini
 
@@ -88,16 +83,28 @@ def merge_Word2Vec(vec_list):
 
 
 if __name__ == '__main__':
+    import sys
+    partition_args = sys.argv[1:]
 
-    embed = load_embedding(word2vec_model)
+    wv_from_text = load_embedding(word2vec_model)
 
     word_list = filter_duplicate_words([train_file, test_file])
 
-    mini = gen_mini_embedding(embed, word_list)
-    logger.debug(f'The length of the vector is {len(mini.vocab.keys())}')
+    partition_num = 8
+    import math
+    partition_length = math.ceil(len(word_list) / partition_num)
+    partition_list = [word_list[i:i + partition_length] for i in range(0, len(word_list), partition_length)]
+    logger.debug(f'The word list split to {len(partition_list)} partitions:{[ len(partition) for partition in partition_list]}')
+    logger.debug(f'Parttion:{partition_args} is choosed')
 
-    fname = "./output/mini_v4.kv"
-    mini.save(fname)
+    for partition in partition_args:
+        if int(partition) >= partition_num:
+            logger.error(f'Input partition:{partition} is incorrect, which should be <{partition_num}')
+        mini = gen_mini_embedding(wv_from_text, partition_list[int(partition)])
+        logger.debug(f'The length of the vector for partition#{partition} is {len(mini.vocab.keys())}')
+
+        fname = f"./output/mini_p_{partition}.kv"
+        mini.save(fname)
 
     #
     # mini = gen_mini_embedding(embed, mini, test_file, True)
