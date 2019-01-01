@@ -59,24 +59,31 @@ def gen_mini_partition( word_set,  wv_from_text):
         logger.debug("Run app with local model")
 
     mini = gensim.models.keyedvectors.Word2VecKeyedVectors(vector_size)
-    for i in tqdm(range(len(word_set)), desc=f'Queue:{id(word_set)}'):
+    #for i in tqdm(range(len(word_set)), desc=f'Queue:{id(word_set)}'):
+    for i in range(len(word_set)):
         word = word_set[i]
         if word in wv_from_text and word not in mini:
             mini[word] = wv_from_text[word]
         elif word not in wv_from_text and len(word) == 1:
-            logger.debug(f'Canot find vec for single:{word}')
+            logger.debug(f'Canot find vec for:1,{word}')
+            mini[word] = np.zeros(vector_size)
         elif word not in wv_from_text and len(word) > 1:
             vector = wordVec(word, wv_from_text, 1, 3)
             if vector is not None:
                 mini[word] = vector
             else:
-                logger.debug(f'Canot find vec for multiply:{len(word)}, {word}')
+                logger.debug(f'Canot find vec for:{len(word)},{word}')
+                mini[word] = np.zeros(vector_size)
         else:
-            pass
+            mini[word] = np.zeros(vector_size)
     return mini
 
 @timed()
 def merge_Word2Vec(vec_list):
+    for sn, mini_vec in enumerate(vec_list):
+        partition_file = f"./output/mini_p{sn}.kv"
+        mini_vec.save(partition_file)
+
     mini_all = None
     for mini_vec in vec_list:
         if mini_all is None:
@@ -99,7 +106,7 @@ if __name__ == '__main__':
     mini = gen_mini_embedding(embed, word_list)
     logger.debug(f'The length of the vector is {len(mini.vocab.keys())}')
 
-    fname = "./output/mini_v4.kv"
+    fname = "./output/mini_merge.kv"
     mini.save(fname)
 
     #
