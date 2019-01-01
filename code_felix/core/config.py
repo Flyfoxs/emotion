@@ -2,6 +2,7 @@ word2vec_model = './input/Tencent_AILab_ChineseEmbedding/Tencent_AILab_ChineseEm
 train_file = './input/data_train.csv'
 test_file = './input/data_test.csv'
 jieba_dict = './input/jieba.txt'
+local = False
 vector_size=200
 from file_cache.utils.util_log import *
 try:
