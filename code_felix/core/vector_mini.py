@@ -29,20 +29,23 @@ def filter_duplicate_words(file_list):
 
 @timed()
 def gen_mini_embedding(wv_from_text, word_list):
-    from multiprocessing import Pool
+    from multiprocessing.dummy import Pool
 
     from functools import partial
 
-    partition_num = 4
-    partition_length = len(word_list)//partition_num
+    partition_num = 8
+    import math
+    partition_length = math.ceil(len(word_list)/partition_num)
 
     partition_list = [ word_list[i:i+partition_length]  for i in range(0, len(word_list), partition_length )]
     logger.debug(f'The word list split to {len(partition_list)} partitions:{[ len(partition) for partition in partition_list]}')
-    thread_pool = Pool(processes=4)
+    thread_pool = Pool(processes=partition_num)
     process = partial(gen_mini_partition,wv_from_text=wv_from_text )
 
     wv_list = thread_pool.map(process, partition_list)
     thread_pool.close(); thread_pool.join()
+
+    del wv_from_text
 
     mini = merge_Word2Vec(wv_list)
 
