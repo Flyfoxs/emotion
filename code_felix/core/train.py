@@ -121,13 +121,20 @@ def train(trainable, weights):
                         callbacks=[early_stop],
                         epochs=30, batch_size=64, validation_split=0.2, shuffle=True)
 
-    best_epoch = np.array(history.history['val_loss']).argmin() + 1
-    best_score = round(np.array(history.history['val_loss']).max(), 5)
+    best_epoch_loss = np.array(history.history['val_loss']).argmin() + 1
+    best_score_loss = round(np.array(history.history['val_loss']).min(), 5)
 
-    logger.debug(f'Result summary with paras:trainable:{trainable}, weight:{False if weights is None else True }: best_epoch:{best_epoch}, best_score:{best_score} ')
+    best_epoch_acc = np.array(history.history['val_acc']).argmax() + 1
+    best_score_acc = round(np.array(history.history['val_acc']).max(), 5)
+
+    logger.debug(f'Result summary with paras:trainable:{trainable}, weight:{False if weights is None else True }, '
+                 f'epoch_acc:{best_epoch_acc}, score_acc:{best_score_acc}, '
+                 f'epoch_loss:{best_epoch_loss}, score_loss:{best_score_loss}, ')
 
 
 if __name__ == '__main__':
-    train(True, [embedding_weights])
     train(False, [embedding_weights])
+
+    train(True, [embedding_weights])
+
     train(False, None)
