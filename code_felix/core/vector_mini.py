@@ -6,6 +6,7 @@ from code_felix.core.feature import *
 from tqdm import tqdm
 
 import jieba
+#https://stackoverflow.com/questions/46297740/how-to-turn-embeddings-loaded-in-a-pandas-dataframe-into-a-gensim-model
 
 @timed()
 def filter_duplicate_words(file_list):
@@ -33,7 +34,7 @@ def gen_mini_embedding(wv_from_text, word_list):
 
     from functools import partial
 
-    partition_num = 1
+    partition_num = 8
     import math
     partition_length = math.ceil(len(word_list)/partition_num)
 
@@ -47,9 +48,9 @@ def gen_mini_embedding(wv_from_text, word_list):
 
     del wv_from_text
 
-    mini = merge_Word2Vec(wv_list)
 
-    return mini
+
+    return round(pd.concat(wv_list), 5)
 
 
 @timed()
@@ -58,42 +59,23 @@ def gen_mini_partition( word_set,  wv_from_text):
         word_set = word_set[:3000]
         logger.debug("Run app with local model")
 
-    mini = gensim.models.keyedvectors.Word2VecKeyedVectors(vector_size)
+    mini = pd.DataFrame( np.zeros((len(word_set), vector_size)),  index=word_set, )
     for i in tqdm(range(len(word_set))):
     #for i in range(len(word_set)):
         word = word_set[i]
         if word in wv_from_text and word not in mini:
-            mini[word] = wv_from_text[word]
-        # elif word not in wv_from_text and len(word) == 1:
-        #     logger.debug(f'Canot find vec for:1,{word}')
-        #     mini[word] = np.zeros(vector_size)
+            mini.loc[word] = wv_from_text[word]
         elif word not in wv_from_text and len(word) > 1:
             vector = wordVec(word, wv_from_text, 1, 3)
             if vector is not None:
-                mini[word] = vector
+                mini.loc[word] = vector
             else:
                 logger.debug(f'Canot find vec for:{len(word)},{word}')
-                mini[word] = np.zeros(vector_size)
+                mini.loc[word] = np.zeros(vector_size)
         else:
             logger.debug(f'Canot find vec for:{len(word)},{word}')
-            mini[word] = np.zeros(vector_size)
+            mini.loc[word] = np.zeros(vector_size)
     return mini
-
-@timed()
-def merge_Word2Vec(vec_list):
-    for sn, mini_vec in enumerate(vec_list):
-        partition_file = f"./output/mini_p{sn}.kv"
-        mini_vec.save(partition_file)
-
-    mini_all = None
-    for mini_vec in vec_list:
-        if mini_all is None:
-            mini_all = mini_vec
-        else:
-            for entry in mini_vec.vocab.keys():
-                mini_all[entry] = mini_vec[entry]
-    logger.debug(f'The length of the merge vector is {len(mini_all.vocab.keys())}')
-    return mini_all
 
 
 
@@ -104,11 +86,15 @@ if __name__ == '__main__':
 
     word_list = filter_duplicate_words([train_file, test_file])
 
-    mini = gen_mini_embedding(embed, word_list)
-    logger.debug(f'The length of the vector is {len(mini.vocab.keys())}')
+    data = gen_mini_embedding(embed, word_list)
+    logger.debug(f'The length of the vector is {data.shape}')
 
-    fname = "./output/mini_v5.kv"
-    mini.save(fname)
+    fname = "./output/mini_v6.txt"
+    np.savetxt(fname, data.reset_index().values,
+               delimiter=" ",
+               header="{} {}".format(len(data), len(data.columns)),
+               comments="",
+               fmt=["%s"] + ["%.6f"] * len(data.columns))
 
     #
     # mini = gen_mini_embedding(embed, mini, test_file, True)
