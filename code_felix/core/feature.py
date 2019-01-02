@@ -2,6 +2,8 @@ import numpy as np
 from file_cache.utils.util_log import *
 from code_felix.core.config import *
 from functools import lru_cache
+import pandas as pd
+from file_cache.cache import file_cache
 
 def compute_ngrams(word, min_n, max_n):
     # BOW, EOW = ('<', '>')  # Used by FastText to attach to all words as prefix and suffix
@@ -75,3 +77,62 @@ def load_embedding_dict(path):
 
     return embedding_index
 
+
+import jieba
+from functools import lru_cache
+
+
+@timed()
+@lru_cache()
+def load_jeba_userdict():
+    jieba.load_userdict('./input/jieba.txt')
+
+
+@timed()
+def get_word_freqs():
+    import collections
+    word_freqs = collections.Counter()
+
+    for file in [train_file, test_file]:
+        df = pd.read_csv(file, encoding='gb18030', delimiter='\t', header=None)
+        for sentence in df.iloc[:, 2].values.tolist():
+            for word in jieba.cut(str(sentence), cut_all=False):
+                word_freqs[word] += 1
+    df = pd.DataFrame({'word': list(word_freqs.keys()), 'freqs': list(word_freqs.values()), })
+    df.sort_values('freqs', ascending=False, inplace=True)
+
+    df.reset_index(drop=True, inplace=True)
+    df['id'] = df.index + 2
+
+    df = df.append({'freqs': 0, 'word': 'PAD', 'id': 0}, ignore_index=True)
+    df = df.append({'freqs': 0, 'word': 'UNK', 'id': 1}, ignore_index=True)
+
+    return df.sort_values('id')
+
+
+@timed()
+def get_id2vec(fname="./output/mini.kv"):
+    from gensim.models import KeyedVectors
+    wv_from_text = KeyedVectors.load(fname, mmap='r')
+    wv_from_text.init_sims()
+
+    ordered_vocab = [(term, voc.index, voc.count) for term, voc in wv_from_text.wv.vocab.items()]
+    # sort by the term counts, so the most common terms appear first
+    ordered_vocab = sorted(ordered_vocab, key=lambda k: -k[2])
+
+    # unzip the terms, integer indices, and counts into separate lists
+    ordered_terms, term_indices, term_counts = zip(*ordered_vocab)
+    # print(ordered_terms)
+    # create a DataFrame with the food2vec vectors as data,
+    # and the terms as row labels
+    word_vectors = pd.DataFrame(wv_from_text.wv.syn0norm[term_indices, :], index=ordered_terms)
+    word_vectors.index.name = 'word'
+    return word_vectors.reset_index()
+
+
+
+@file_cache()
+def get_word_id_vec(version='1'):
+    freqs = get_word_freqs()
+    word_vec = get_id2vec()
+    return pd.merge(freqs, word_vec, how='left', on='word')
