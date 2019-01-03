@@ -50,7 +50,7 @@ def gen_mini_embedding(wv_from_text, word_list):
 
 
 
-    return round(pd.concat(wv_list), 5)
+    return pd.concat(wv_list)
 
 
 @timed()
@@ -60,8 +60,8 @@ def gen_mini_partition( word_set,  wv_from_text):
         logger.debug("Run app with local model")
 
     mini = pd.DataFrame( np.zeros((len(word_set), vector_size)),  index=word_set, )
-    for i in tqdm(range(len(word_set))):
-    #for i in range(len(word_set)):
+    #for i in tqdm(range(len(word_set))):
+    for i in range(len(word_set)):
         word = word_set[i]
         if word in wv_from_text and word not in mini:
             mini.loc[word] = wv_from_text[word]
