@@ -181,9 +181,8 @@ if __name__ == '__main__':
     for i in range(5):
         #embedding_dim
         if args is None or 1 in args:
-            for max_words in [221]:
-                for embedding_dim in range(80, 200, 20):
-                    train(0.5, max_words, embedding_dim)
+                for embedding_dim in range(80, 150, 20):
+                    train(0.5, 221, embedding_dim)
 
         #Drop out
         if args is None or 2 in args:
