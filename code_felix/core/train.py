@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 
+np.random.seed(42)
 import keras
 
 
@@ -89,7 +90,11 @@ def train(drop_out, max_words, embedding_dim =100):
     best_epoch_acc = np.array(history.history['val_acc']).argmax() + 1
     best_score_acc = round(np.array(history.history['val_acc']).max(), 5)
 
+    best_epoch_f1 = np.array(history.history['val_f1']).argmax() + 1
+    best_score_f1 = round(np.array(history.history['val_f1']).max(), 5)
+
     logger.debug(f'Result summary with paras:{input_args}, '
+                 f'epoch_f1:{best_epoch_f1}, f1:{best_score_f1}, '
                  f'epoch_acc:{best_epoch_acc}, acc:{best_score_acc}, '
                  f'epoch_loss:{best_epoch_loss}, loss:{best_score_loss}, ')
 
@@ -102,16 +107,25 @@ def train(drop_out, max_words, embedding_dim =100):
 
 def gen_sub(model_file, test, comments):
     from keras import models
-    model = models.load_model(model_file)
+    model = models.load_model(model_file,custom_objects={'f1': f1})
     #model.predict(test)
     predict = np.argmax(model.predict(test), axis=1)
-    sub = pd.DataFrame({'id':range(1, len(test)+1), 'emotion':predict})[['id', 'emotion']]
+    sub = pd.DataFrame(model.predict(test), columns=range(3))
+    sub['emotion'] = sub.idxmax(axis=1)
+    sub['id'] = range(1, len(predict)+1)
 
     from file_cache.utils.other import replace_invalid_filename_char
-    file_name = replace_invalid_filename_char(f'./output/emotion_{comments}.csv')
+    file_name = replace_invalid_filename_char(f'./output/sub/emotion_{comments}.csv')
 
+    #SUB FILE
     logger.debug(f'Save sub file to :{file_name}')
-    sub.to_csv(file_name, header=False, index=False)
+    sub[['id', 'emotion']].to_csv(file_name, header=False, index=False)
+
+    #LEVEL1 FILE
+    file_name = replace_invalid_filename_char(f'./output/1level/emotion_{comments}.hd5')
+    sub.to_hdf(file_name, header=False, index=False, key='test')
+
+
 
 def get_model(drop_out, max_words, embedding_dim):
     global vector_size
@@ -148,29 +162,48 @@ def get_model(drop_out, max_words, embedding_dim):
     output = keras.layers.Dense(output_dim, activation='softmax')(fc)
     # Finally building model
     model = keras.Model(inputs=[sequence_input], outputs=output)
-    model.compile(loss="categorical_crossentropy", metrics=["accuracy"], optimizer='adam')
+    model.compile(loss="categorical_crossentropy", metrics=["accuracy",f1], optimizer='adam')
     # Print model summary
     model.summary()
     return model
 
 
 if __name__ == '__main__':
+    import sys
+    if len(sys.argv) > 1:
+        args = sys.argv[1:]
+        args = [int(item) for item in args]
+    else:
+        args = None
 
+    logger.debug(f'The section paras is:{args}')
 
-    # for max_words in [221, 200,  230]:
-    #     for embedding_dim in range(80, 200, 20):
-    #         train(0.5, max_words, embedding_dim)
+    for i in range(5):
+        #embedding_dim
+        if args is None or 1 in args:
+            for max_words in [221]:
+                for embedding_dim in range(80, 200, 20):
+                    train(0.5, max_words, embedding_dim)
 
-    #
-    # for (drop_out, max_words)  in [
-    #                                 (0.5,221 ),
-    #                                 (0.3, 221),
-    #                                 (0.1, 221),
-    #                             ]:
-    #     train(drop_out, max_words)
-    #
-    for max_words in [200,  230, 221, ]:
-        train(0.5, max_words, embedding_dim=100)
+        #Drop out
+        if args is None or 2 in args:
+            for drop_out in np.arange(0.1, 0.7, 0.1):
+                train(round(drop_out, 1), 221)
+
+        #max_words
+        if args is None or 3 in args:
+                for max_words in [200, 221, 240, ]:
+                    train(0.5, max_words, embedding_dim=100)
+
+        #Drop out
+        if args is None or 4 in args:
+            for drop_out in [0.5, 0.6, 0.4]:
+                for _ in range(5):
+                    train(round(drop_out, 1), 221)
+            # for drop_out in [0.5]:
+            #     train(round(drop_out, 1), 221)
+            # for drop_out in [0.5]:
+            #     train(round(drop_out, 1), 221)
 
 
 
