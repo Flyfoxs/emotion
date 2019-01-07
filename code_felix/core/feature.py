@@ -111,11 +111,15 @@ def get_word_freqs():
 
 
 @timed()
-def get_id2vec(fname="./output/mini.kv"):
-    from gensim.models import KeyedVectors
-    wv_from_text = KeyedVectors.load(fname, mmap='r')
-    wv_from_text.init_sims()
 
+# def get_id2vec(fname="./output/mini.kv"):
+#     from gensim.models import KeyedVectors
+#     wv_from_text = KeyedVectors.load(fname, mmap='r')
+#     wv_from_text.init_sims()
+def get_id2vec(word2vec_model="./output/mini_v6.txt"):
+    import gensim
+    wv_from_text = gensim.models.KeyedVectors.load_word2vec_format(word2vec_model, binary=False)
+    wv_from_text.init_sims()
     ordered_vocab = [(term, voc.index, voc.count) for term, voc in wv_from_text.wv.vocab.items()]
     # sort by the term counts, so the most common terms appear first
     ordered_vocab = sorted(ordered_vocab, key=lambda k: -k[2])

@@ -66,7 +66,7 @@ def train(drop_out, max_words, embedding_dim =100):
 
 
 
-    tmp_model = f'./output/checkpoint/emotion_{input_args}.hdf5'
+    tmp_model = f'./output/checkpoint/emotion_{input_args}_{id(model)}.hdf5'
     check_best = ModelCheckpoint(filepath=tmp_model,
                                 monitor='val_acc',verbose=1,
                                 save_best_only=True, mode='max')
@@ -94,19 +94,23 @@ def train(drop_out, max_words, embedding_dim =100):
     best_score_f1 = round(np.array(history.history['val_f1']).max(), 5)
 
     logger.debug(f'Result summary with paras:{input_args}, '
-                 f'epoch_f1:{best_epoch_f1}, f1:{best_score_f1}, '
-                 f'epoch_acc:{best_epoch_acc}, acc:{best_score_acc}, '
-                 f'epoch_loss:{best_epoch_loss}, loss:{best_score_loss}, ')
+                 f'epoch_f1:{best_epoch_f1}, f1:{best_score_f1:.5f}, '
+                 f'epoch_acc:{best_epoch_acc}, acc:{best_score_acc:.5f}, '
+                 f'epoch_loss:{best_epoch_loss}, loss:{best_score_loss:.5f}, ')
 
-    gen_sub(tmp_model,test, f'{best_score_acc}_{input_args}_{best_epoch_acc}')
+    gen_sub(tmp_model,test, f'{best_score_acc:.5f}_{input_args}_{best_epoch_acc}')
 
     if os.path.exists(tmp_model):
         os.remove(tmp_model)
 
     return best_score_acc
 
+@timed()
 def gen_sub(model_file, test, comments):
     from keras import models
+    import socket
+    host_name = socket.gethostname().split('-')[-1]
+
     model = models.load_model(model_file,custom_objects={'f1': f1})
     #model.predict(test)
     predict = np.argmax(model.predict(test), axis=1)
@@ -115,14 +119,14 @@ def gen_sub(model_file, test, comments):
     sub['id'] = range(1, len(predict)+1)
 
     from file_cache.utils.other import replace_invalid_filename_char
-    file_name = replace_invalid_filename_char(f'./output/sub/emotion_{comments}.csv')
+    file_name = replace_invalid_filename_char(f'./output/sub/emotion_{comments}_{host_name}.csv')
 
     #SUB FILE
     logger.debug(f'Save sub file to :{file_name}')
     sub[['id', 'emotion']].to_csv(file_name, header=False, index=False)
 
     #LEVEL1 FILE
-    file_name = replace_invalid_filename_char(f'./output/1level/emotion_{comments}.hd5')
+    file_name = replace_invalid_filename_char(f'./output/1level/emotion_{comments}_{host_name}.hd5')
     sub.to_hdf(file_name, header=False, index=False, key='test')
 
 
@@ -186,18 +190,18 @@ if __name__ == '__main__':
 
         #Drop out
         if args is None or 2 in args:
-            for drop_out in np.arange(0.1, 0.7, 0.1):
+            for drop_out in np.arange(0.2, 0.6, 0.1):
                 train(round(drop_out, 1), 221)
 
-        #max_words
-        if args is None or 3 in args:
-                for max_words in [200, 221, 240, ]:
-                    train(0.5, max_words, embedding_dim=100)
+        # #max_words
+        # if args is None or 3 in args:
+        #         for max_words in [200, 221, 240, ]:
+        #             train(0.2, max_words, embedding_dim=100)
 
         #Drop out
         if args is None or 4 in args:
-            for drop_out in [0.5, 0.6, 0.4]:
-                for _ in range(5):
+            for drop_out in [0.3,0.2]:
+                for _ in range(4):
                     train(round(drop_out, 1), 221)
             # for drop_out in [0.5]:
             #     train(round(drop_out, 1), 221)
