@@ -101,10 +101,10 @@ def train(drop_out, max_words=221 , embedding_dim =100, max_epochs=40, trainable
             score_list.append( best_score_f1 )
         score_avg = np.array(score_list).mean()
         score_std = np.array(score_list).std()
-        logger.debug(f'poch:{epoch_current}, The avg:{score_avg:0.5f}, std:{score_std:0.5f} for epoch:{epoch_current}: {score_list}')
+        logger.debug(f'Epoch:{epoch_current:2}, The avg:{score_avg:0.5f}, std:{score_std:0.5f} for epoch:{epoch_current}: {score_list}')
 
         save_model(model_meta_file, model_list, epoch_current, drop_out, max_words, embedding_dim, trainable)
-        if score_avg > 0.945:
+        if score_avg > 0.94:
             gen_sub(model_list, test, f'{score_avg:0.5f}_{input_args}_cur_epoch:{epoch_current}')
         else:
             logger.debug(f'The socore avg is {score_avg}, no need to gen sub')
