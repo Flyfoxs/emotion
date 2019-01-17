@@ -77,6 +77,18 @@ def gen_mini_partition( word_set,  wv_from_text):
             mini.loc[word] = np.zeros(vector_size)
     return mini
 
+@timed()
+def merge_Word2Vec(vec_list):
+    mini_all = None
+    for mini_vec in vec_list:
+        if mini_all is None:
+            mini_all = mini_vec
+        else:
+            for entry in mini_vec.vocab.keys():
+                mini_all[entry] = mini_vec[entry]
+    logger.debug(f'The length of the merge vector is {len(mini_all.vocab.keys())}')
+    return mini_all
+
 
 
 
